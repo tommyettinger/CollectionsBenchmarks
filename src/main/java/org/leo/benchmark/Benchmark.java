@@ -44,7 +44,6 @@ import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.*;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * Collection Benchmark
@@ -78,7 +77,7 @@ public class Benchmark {
 	 * Default context used for each benchmark test (will populate the tested
 	 * collection before launching the bench)
 	 */
-	private List<String> defaultCtx;
+	private ArrayList<String> defaultCtx;
 
 	/** Benchmark results */
 	private Map<String, Map<Class<? extends Collection<?>>, Long>> benchResults;
@@ -95,12 +94,12 @@ public class Benchmark {
 	public Benchmark(long timeout, int populateSize) {
 		this.timeout = timeout;
 		this.populateSize = populateSize;
-		defaultCtx = new ArrayList<String>();
+		defaultCtx = new ArrayList<>();
 		for (int i = 0; i < populateSize; i++) {
-			defaultCtx.add(Integer.toString(i % 100));
+			defaultCtx.add(Integer.toBinaryString(i));
 		}
-		benchResults = new HashMap<String, Map<Class<? extends Collection<?>>, Long>>();
-		memoryResults = new HashMap<Class<? extends Collection<?>>, Long>();
+		benchResults = new HashMap<>();
+		memoryResults = new HashMap<>();
 	}
 
 	/**
@@ -123,23 +122,23 @@ public class Benchmark {
 			System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
 			// some collection used in some benchmark cases
-			final Collection<String> col = new ArrayList<String>();
+			final ArrayList<String> col = new ArrayList<>();
 			for (int i = 0; i < 1000; i++) {
-				col.add(Integer.toString(i % 30));
+				col.add(defaultCtx.get(i % 30));
 			}
 
 			// Collection benchmark
 			execute(new BenchRunnable() {
 				@Override
 				public void run(int i) {
-					collection.add(Integer.toString(i % 29));
+					collection.add(Integer.toBinaryString(populateSize + i));
 				}
 			}, populateSize, "add " + populateSize + " elements");
 
 			execute(new BenchRunnable() {
 				@Override
 				public void run(int i) {
-					collection.remove(Integer.toString(i));
+					collection.remove(defaultCtx.get(collection.size() - 1 - i));
 				}
 			}, Math.max(1, populateSize / 10), "remove " + Math.max(1, populateSize / 10) + " elements given Object");
 
@@ -154,7 +153,7 @@ public class Benchmark {
 			execute(new BenchRunnable() {
 				@Override
 				public void run(int i) {
-					collection.contains(collection.size() - i - 1);
+					collection.contains(defaultCtx.get(collection.size() - i - 1));
 				}
 			}, Math.min(populateSize, 1000), "contains " + Math.min(populateSize, 1000) + " times");
 
@@ -169,7 +168,9 @@ public class Benchmark {
 			execute(new BenchRunnable() {
 				@Override
 				public void run(int i) {
-					collection.iterator();
+					Iterator<String> it = collection.iterator();
+					if(it.hasNext())
+						it.next();
 				}
 			}, populateSize, "iterator " + populateSize + " times");
 
@@ -349,7 +350,7 @@ public class Benchmark {
 		// store the results for display
 		Map<Class<? extends Collection<?>>, Long> currentBench = benchResults.get(taskName);
 		if (currentBench == null) {
-			currentBench = new HashMap<Class<? extends Collection<?>>, Long>();
+			currentBench = new HashMap<>();
 			benchResults.put(taskName, currentBench);
 		}
 		currentBench.put((Class<? extends Collection<String>>) collection.getClass(), time);
@@ -362,9 +363,9 @@ public class Benchmark {
 	 */
 	@SuppressWarnings("serial")
 	public void displayBenchmarkResults() {
-		List<ChartPanel> chartPanels = new ArrayList<ChartPanel>();
+		List<ChartPanel> chartPanels = new ArrayList<>();
 		// sort task by names
-		List<String> taskNames = new ArrayList<String>(benchResults.keySet());
+		List<String> taskNames = new ArrayList<>(benchResults.keySet());
 		Collections.sort(taskNames);
 		// browse task name, 1 chart per task
 		for (String taskName : taskNames) {
@@ -429,7 +430,7 @@ public class Benchmark {
 			Map<Class<? extends Collection<?>>, Long> clazzResult,
 			AbstractCategoryItemLabelGenerator catItemLabelGenerator) {
 		// sort data by class name
-		List<Class<? extends Collection<?>>> clazzes = new ArrayList<Class<? extends Collection<?>>>(
+		List<Class<? extends Collection<?>>> clazzes = new ArrayList<>(
 				clazzResult.keySet());
 		Collections.sort(clazzes, new Comparator<Class<? extends Collection<?>>>() {
 			@Override
@@ -593,7 +594,9 @@ public class Benchmark {
 
 			// set benchmark
 			 benchmark.run(HashSet.class);
-			 benchmark.run(CopyOnWriteArraySet.class);
+
+			 // not much point in testing this one, it's incredibly slow
+			 //benchmark.run(CopyOnWriteArraySet.class);
 			 benchmark.run(TreeSet.class);
 			 benchmark.run(LinkedHashSet.class);
 			 benchmark.run(UnorderedSet.class);
