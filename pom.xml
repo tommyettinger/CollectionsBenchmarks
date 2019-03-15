@@ -80,6 +80,11 @@
             <artifactId>squidlib-util</artifactId>
             <version>${squidlib.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.badlogicgames.gdx</groupId>
+            <artifactId>gdx</artifactId>
+            <version>1.9.8</version>
+        </dependency>
     </dependencies>
 
     <issueManagement>

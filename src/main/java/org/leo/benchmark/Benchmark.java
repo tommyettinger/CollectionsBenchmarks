@@ -18,6 +18,7 @@
  */
 package org.leo.benchmark;
 
+import com.badlogic.gdx.utils.Array;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -69,7 +70,9 @@ public class Benchmark {
 
 	/** Collection implementation to be tested */
 	private Collection<String> collection;
-
+	
+	private com.badlogic.gdx.utils.OrderedSet<String> gdxSet;
+	
 	/** List implementation to be tested */
 	private List<String> list;
 
@@ -80,10 +83,10 @@ public class Benchmark {
 	private ArrayList<String> defaultCtx;
 
 	/** Benchmark results */
-	private Map<String, Map<Class<? extends Collection<?>>, Long>> benchResults;
+	private Map<String, Map<Class<?>, Long>> benchResults;
 
 	/** Memory results */
-	private Map<Class<? extends Collection<?>>, Long> memoryResults;
+	private Map<Class<?>, Long> memoryResults;
 
 	/**
 	 * Constructor
@@ -111,177 +114,253 @@ public class Benchmark {
 	 * @throws InstantiationException
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public void run(Class<? extends Collection> collectionClass) {
+	public void run(Class<?> collectionClass) {
 		try {
-			long startTime = System.currentTimeMillis();
-			Constructor<? extends Collection> constructor = collectionClass.getDeclaredConstructor((Class<?>[]) null);
-			constructor.setAccessible(true);
-			collection = (Collection<String>) constructor.newInstance();
-			System.out.println("Performances of " + collection.getClass().getCanonicalName() + " populated with "
-					+ populateSize + " elt(s)");
-			System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+			if(Collection.class.isAssignableFrom(collectionClass)) {
+				long startTime = System.currentTimeMillis();
+				Constructor<?> constructor = collectionClass.getDeclaredConstructor((Class<?>[]) null);
+				constructor.setAccessible(true);
+				collection = (Collection<String>) constructor.newInstance();
+				System.out.println("Performances of " + collection.getClass().getCanonicalName() + " populated with "
+						+ populateSize + " elt(s)");
+				System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
-			// some collection used in some benchmark cases
-			final ArrayList<String> col = new ArrayList<>();
-			for (int i = 0; i < 1000; i++) {
-				col.add(defaultCtx.get(i % 30));
-			}
-
-			// Collection benchmark
-			execute(new BenchRunnable() {
-				@Override
-				public void run(int i) {
-					collection.add(Integer.toBinaryString(populateSize + i));
+				// some collection used in some benchmark cases
+				final ArrayList<String> col = new ArrayList<>();
+				for (int i = 0; i < 1000; i++) {
+					col.add(defaultCtx.get(i & 31));
 				}
-			}, populateSize, "add " + populateSize + " elements");
 
-			execute(new BenchRunnable() {
-				@Override
-				public void run(int i) {
-					collection.remove(defaultCtx.get(collection.size() - 1 - i));
-				}
-			}, Math.max(1, populateSize / 10), "remove " + Math.max(1, populateSize / 10) + " elements given Object");
-
-			execute(new BenchRunnable() {
-				@Override
-				public void run(int i) {
-					collection.addAll(col);
-				}
-			}, Math.min(populateSize, 1000), "addAll " + Math.min(populateSize, 1000) + " times " + col.size()
-					+ " elements");
-
-			execute(new BenchRunnable() {
-				@Override
-				public void run(int i) {
-					collection.contains(defaultCtx.get(collection.size() - i - 1));
-				}
-			}, Math.min(populateSize, 1000), "contains " + Math.min(populateSize, 1000) + " times");
-
-			execute(new BenchRunnable() {
-				@Override
-				public void run(int i) {
-					collection.removeAll(col);
-				}
-			}, Math.min(populateSize, 10), "removeAll " + Math.min(populateSize, 10) + " times " + col.size()
-					+ " elements");
-
-			execute(new BenchRunnable() {
-				@Override
-				public void run(int i) {
-					Iterator<String> it = collection.iterator();
-					if(it.hasNext())
-						it.next();
-				}
-			}, populateSize, "iterator " + populateSize + " times");
-
-			execute(new BenchRunnable() {
-				@Override
-				public void run(int i) {
-					collection.containsAll(col);
-				}
-			}, Math.min(populateSize, 5000), "containsAll " + Math.min(populateSize, 5000) + " times");
-
-			execute(new BenchRunnable() {
-				@Override
-				public void run(int i) {
-					collection.toArray();
-				}
-			}, Math.min(populateSize, 5000), "toArray " + Math.min(populateSize, 5000) + " times");
-
-			execute(new BenchRunnable() {
-				@Override
-				public void run(int i) {
-					collection.clear();
-				}
-			}, 1, "clear");
-
-			execute(new BenchRunnable() {
-				@Override
-				public void run(int i) {
-					collection.retainAll(col);
-				}
-			}, Math.min(populateSize, 10), "retainAll " + Math.min(populateSize, 10) + " times");
-
-			// List benchmark
-			if (collection instanceof List) {
-				list = (List<String>) collection;
+				// Collection benchmark
 				execute(new BenchRunnable() {
 					@Override
 					public void run(int i) {
-						list.add((i), Integer.toString(i));
+						collection.add(Integer.toBinaryString(populateSize + i));
 					}
-				}, populateSize, "add at a given index " + populateSize + " elements");
+				}, populateSize, "add " + populateSize + " elements");
 
 				execute(new BenchRunnable() {
 					@Override
 					public void run(int i) {
-						list.addAll((i), col);
+						collection.remove(defaultCtx.get(collection.size() - 1 - i));
+					}
+				}, Math.max(1, populateSize / 10), "remove " + Math.max(1, populateSize / 10) + " elements given Object");
+
+				execute(new BenchRunnable() {
+					@Override
+					public void run(int i) {
+						collection.addAll(col);
 					}
 				}, Math.min(populateSize, 1000), "addAll " + Math.min(populateSize, 1000) + " times " + col.size()
-						+ " elements at a given index");
+						+ " elements");
 
 				execute(new BenchRunnable() {
 					@Override
 					public void run(int i) {
-						list.get(i);
+						collection.contains(defaultCtx.get(collection.size() - i - 1));
 					}
-				}, Math.min(populateSize, 50000), "get " + Math.min(populateSize, 50000) + " times");
+				}, Math.min(populateSize, 1000), "contains " + Math.min(populateSize, 1000) + " times");
 
 				execute(new BenchRunnable() {
 					@Override
 					public void run(int i) {
-						list.indexOf(i);
+						collection.removeAll(col);
 					}
-				}, Math.min(populateSize, 5000), "indexOf " + Math.min(populateSize, 5000) + " times");
+				}, Math.min(populateSize, 10), "removeAll " + Math.min(populateSize, 10) + " times " + col.size()
+						+ " elements");
 
 				execute(new BenchRunnable() {
 					@Override
 					public void run(int i) {
-						list.lastIndexOf(i);
+						Iterator<String> it = collection.iterator();
+						if (it.hasNext())
+							it.next();
 					}
-				}, Math.min(populateSize, 5000), "lastIndexOf " + Math.min(populateSize, 5000) + " times");
+				}, populateSize, "iterator " + populateSize + " times");
 
 				execute(new BenchRunnable() {
 					@Override
 					public void run(int i) {
-						list.set(i, Integer.toString(i % 29));
+						collection.containsAll(col);
 					}
-				}, Math.max(1, populateSize), "set " + Math.max(1, populateSize) + " times");
+				}, Math.min(populateSize, 5000), "containsAll " + Math.min(populateSize, 5000) + " times");
 
 				execute(new BenchRunnable() {
 					@Override
 					public void run(int i) {
-						list.subList(collection.size() / 4, collection.size() / 2);
+						collection.toArray();
 					}
-				}, populateSize, "subList on a " + (populateSize / 2 - populateSize / 4) + " elts sublist "
-						+ populateSize + " times");
+				}, Math.min(populateSize, 5000), "toArray " + Math.min(populateSize, 5000) + " times");
 
 				execute(new BenchRunnable() {
 					@Override
 					public void run(int i) {
-						list.listIterator();
+						collection.clear();
 					}
-				}, populateSize, "listIterator " + populateSize + " times");
+				}, 1, "clear");
 
 				execute(new BenchRunnable() {
 					@Override
 					public void run(int i) {
-						list.listIterator(i);
+						collection.retainAll(col);
 					}
-				}, populateSize, "listIterator at a given index " + populateSize + " times");
+				}, Math.min(populateSize, 10), "retainAll " + Math.min(populateSize, 10) + " times");
 
-				execute(new BenchRunnable() {
-					@Override
-					public void run(int i) {
-						list.remove(list.size() / 2);
-					}
-				}, 10000, "remove " + 10000 + " elements given index (index=list.size()/2)");
+				// List benchmark
+				if (collection instanceof List) {
+					list = (List<String>) collection;
+					execute(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							list.add((i), Integer.toString(i));
+						}
+					}, populateSize, "add at a given index " + populateSize + " elements");
+
+					execute(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							list.addAll((i), col);
+						}
+					}, Math.min(populateSize, 1000), "addAll " + Math.min(populateSize, 1000) + " times " + col.size()
+							+ " elements at a given index");
+
+					execute(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							list.get(i);
+						}
+					}, Math.min(populateSize, 50000), "get " + Math.min(populateSize, 50000) + " times");
+
+					execute(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							list.indexOf(i);
+						}
+					}, Math.min(populateSize, 5000), "indexOf " + Math.min(populateSize, 5000) + " times");
+
+					execute(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							list.lastIndexOf(i);
+						}
+					}, Math.min(populateSize, 5000), "lastIndexOf " + Math.min(populateSize, 5000) + " times");
+
+					execute(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							list.set(i, Integer.toString(i % 29));
+						}
+					}, Math.max(1, populateSize), "set " + Math.max(1, populateSize) + " times");
+
+					execute(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							list.subList(collection.size() / 4, collection.size() / 2);
+						}
+					}, populateSize, "subList on a " + (populateSize / 2 - populateSize / 4) + " elts sublist "
+							+ populateSize + " times");
+
+					execute(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							list.listIterator();
+						}
+					}, populateSize, "listIterator " + populateSize + " times");
+
+					execute(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							list.listIterator(i);
+						}
+					}, populateSize, "listIterator at a given index " + populateSize + " times");
+
+					execute(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							list.remove(list.size() / 2);
+						}
+					}, 10000, "remove " + 10000 + " elements given index (index=list.size()/2)");
+				}
+
+				System.out.println("Benchmark done in " + ((double) (System.currentTimeMillis() - startTime)) / 1000 + "s");
+				System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+				// free memory
+				collection.clear();
 			}
+			else if(collectionClass.equals(com.badlogic.gdx.utils.OrderedSet.class)) {
+					long startTime = System.currentTimeMillis();
+					Constructor<?> constructor = collectionClass.getDeclaredConstructor((Class<?>[]) null);
+					constructor.setAccessible(true);
+				    gdxSet = (com.badlogic.gdx.utils.OrderedSet<String>) constructor.newInstance();
+					System.out.println("Performances of com.badlogic.gdx.utils.OrderedSet populated with "
+							+ populateSize + " elt(s)");
+					System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
-			System.out.println("Benchmark done in " + ((double) (System.currentTimeMillis() - startTime)) / 1000 + "s");
-			System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-			// free memory
-			collection.clear();
+					// some collection used in some benchmark cases
+					final Array<String> col = new Array<>();
+					for (int i = 0; i < 1000; i++) {
+						col.add(defaultCtx.get(i & 31));
+					}
+
+					// Collection benchmark
+				executeGDX(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							gdxSet.add(Integer.toBinaryString(populateSize + i));
+						}
+					}, populateSize, "add " + populateSize + " elements");
+
+				executeGDX(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							gdxSet.remove(defaultCtx.get(gdxSet.size - 1 - i));
+						}
+					}, Math.max(1, populateSize / 10), "remove " + Math.max(1, populateSize / 10) + " elements given Object");
+
+				executeGDX(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							gdxSet.addAll(col);
+						}
+					}, Math.min(populateSize, 1000), "addAll " + Math.min(populateSize, 1000) + " times " + col.size
+							+ " elements");
+
+				executeGDX(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							gdxSet.contains(defaultCtx.get(gdxSet.size - i - 1));
+						}
+					}, Math.min(populateSize, 1000), "contains " + Math.min(populateSize, 1000) + " times");
+
+				executeGDX(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							Iterator<String> it = gdxSet.iterator();
+							if (it.hasNext())
+								it.next();
+						}
+					}, populateSize, "iterator " + populateSize + " times");
+
+				executeGDX(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							gdxSet.orderedItems().toArray();
+						}
+					}, Math.min(populateSize, 5000), "toArray " + Math.min(populateSize, 5000) + " times");
+
+					executeGDX(new BenchRunnable() {
+						@Override
+						public void run(int i) {
+							gdxSet.clear();
+						}
+					}, 1, "clear");
+					
+				System.out.println("Benchmark done in " + ((double) (System.currentTimeMillis() - startTime)) / 1000 + "s");
+				System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+				// free memory
+				gdxSet.clear();
+				}
+
 		} catch (Exception e) {
 			System.err.println("Failed running benchmark on class " + collectionClass.getCanonicalName());
 			e.printStackTrace();
@@ -293,7 +372,7 @@ public class Benchmark {
 
 	/**
 	 * Execute the current run code loop times.
-	 * 
+	 *
 	 * @param run code to run
 	 * @param loop number of time to run the code
 	 * @param taskName name displayed at the end of the task
@@ -346,14 +425,76 @@ public class Benchmark {
 		} catch (Exception e1) {
 			e1.printStackTrace();
 		}
-		
+
 		// store the results for display
-		Map<Class<? extends Collection<?>>, Long> currentBench = benchResults.get(taskName);
+		Map<Class<?>, Long> currentBench = benchResults.get(taskName);
 		if (currentBench == null) {
 			currentBench = new HashMap<>();
 			benchResults.put(taskName, currentBench);
 		}
-		currentBench.put((Class<? extends Collection<String>>) collection.getClass(), time);
+		currentBench.put(collection.getClass(), time);
+		// little gc to clean up all the stuff
+		System.gc();
+	}
+	/**
+	 * Execute the current run code loop times.
+	 *
+	 * @param run code to run
+	 * @param loop number of time to run the code
+	 * @param taskName name displayed at the end of the task
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private void executeGDX(BenchRunnable run, int loop, String taskName) {
+		System.out.print(taskName + " ... ");
+		// set default context
+		gdxSet.clear();
+		gdxSet.addAll(defaultCtx.toArray(new String[0]));
+		// warmup
+		warmUpGDX();
+		isTimeout = false;
+		// timeout timer
+		Timer timer = new Timer((int) timeout, new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				isTimeout = true;
+				// to raise a ConcurrentModificationException or a
+				// NoSuchElementException to interrupt internal work in the List
+				gdxSet.clear();
+			}
+		});
+		timer.setRepeats(false);
+		timer.start();
+		long startTime = System.nanoTime();
+		int i;
+		for (i = 0; i < loop && !isTimeout; i++) {
+			try {
+				run.run(i);
+			} catch (Exception e) {
+				// on purpose so ignore it
+			}
+		}
+		timer.stop();
+		long time = isTimeout ? timeout * 1000000 : System.nanoTime() - startTime;
+		System.out.println((isTimeout ? "Timeout (>" + time + "ns) after " + i + " loop(s)" : time + "ns"));
+		// restore default context,
+		// the collection instance might have been
+		// corrupted by the timeout so create a new instance
+		try {
+			Constructor<? extends com.badlogic.gdx.utils.OrderedSet> constructor = gdxSet.getClass().getDeclaredConstructor(
+					(Class<?>[]) null);
+			constructor.setAccessible(true);
+			gdxSet = constructor.newInstance();
+		} catch (Exception e1) {
+			e1.printStackTrace();
+		}
+
+		// store the results for display
+		Map<Class<?>, Long> currentBench = benchResults.get(taskName);
+		if (currentBench == null) {
+			currentBench = new HashMap<>();
+			benchResults.put(taskName, currentBench);
+		}
+		currentBench.put(gdxSet.getClass(), time);
 		// little gc to clean up all the stuff
 		System.gc();
 	}
@@ -370,7 +511,7 @@ public class Benchmark {
 		// browse task name, 1 chart per task
 		for (String taskName : taskNames) {
 			// time by class
-			Map<Class<? extends Collection<?>>, Long> clazzResult = benchResults.get(taskName);
+			Map<Class<?>, Long> clazzResult = benchResults.get(taskName);
 
 			ChartPanel chartPanel = createChart(taskName, "Time (ns)", clazzResult,
 					new StandardCategoryItemLabelGenerator() {
@@ -417,6 +558,16 @@ public class Benchmark {
 	}
 
 	/**
+	 * Do some operation to be sure that the internal structure is allocated
+	 */
+	@SuppressWarnings("rawtypes")
+	private void warmUpGDX() {
+		gdxSet.remove(gdxSet.iterator().next());
+		gdxSet.iterator();
+		gdxSet.orderedItems().toArray();
+	}
+
+	/**
 	 * Create a chartpanel
 	 * 
 	 * @param title title
@@ -427,20 +578,20 @@ public class Benchmark {
 	 */
 	@SuppressWarnings("serial")
 	private ChartPanel createChart(String title, String dataName,
-			Map<Class<? extends Collection<?>>, Long> clazzResult,
+			Map<Class<?>, Long> clazzResult,
 			AbstractCategoryItemLabelGenerator catItemLabelGenerator) {
 		// sort data by class name
-		List<Class<? extends Collection<?>>> clazzes = new ArrayList<>(
+		List<Class<?>> clazzes = new ArrayList<>(
 				clazzResult.keySet());
-		Collections.sort(clazzes, new Comparator<Class<? extends Collection<?>>>() {
+		Collections.sort(clazzes, new Comparator<Class<?>>() {
 			@Override
-			public int compare(Class<? extends Collection<?>> o1, Class<? extends Collection<?>> o2) {
+			public int compare(Class<?> o1, Class<?> o2) {
 				return o1.getCanonicalName().compareTo(o2.getCanonicalName());
 			}
 		});
 		DefaultCategoryDataset dataSet = new DefaultCategoryDataset();
 		// add the data to the dataset
-		for (Class<? extends Collection<?>> clazz : clazzes) {
+		for (Class<?> clazz : clazzes) {
 			dataSet.addValue(clazzResult.get(clazz), clazz.getName(), title.split(" ")[0]);
 		}
 		// create the chart
@@ -509,7 +660,7 @@ public class Benchmark {
 				// measure size
 				long objectSize = (long) ((ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed() - usedMemory) / 100f);
 				System.out.println(clazz.getCanonicalName() + " Object size : " + objectSize + " bytes");
-				memoryResults.put((Class<? extends Collection<?>>) clazz, objectSize);
+				memoryResults.put(clazz, objectSize);
 				collection.clear();
 				collection = null;
 			} catch (Exception e) {
@@ -601,6 +752,7 @@ public class Benchmark {
 			 benchmark.run(LinkedHashSet.class);
 			 benchmark.run(UnorderedSet.class);
 			 benchmark.run(OrderedSet.class);
+			 benchmark.run(com.badlogic.gdx.utils.OrderedSet.class);
 			 // optional
 			 // benchmark.run(TreeMultiset.class);
 			 // benchmark.run(PriorityQueue.class);
